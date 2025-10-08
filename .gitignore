@@ -96,17 +96,21 @@ tmp/
 temp/
 
 # Sensitive files - FIRMAS Y LOGOS DE LA EMPRESA
-public/recursos/firmas/
-public/recursos/logos/
+public/recursos/firmas/*.png
+public/recursos/firmas/*.jpg
+public/recursos/firmas/*.jpeg
+public/recursos/logos/*.png
+public/recursos/logos/*.jpg
+public/recursos/logos/*.jpeg
 public/images/texto*.jpg
 public/images/texto*.png
 public/images/*firma*
 public/images/*logo*
 
-# Scripts de desarrollo y testing
-scripts/
-*.test.js
-*.spec.js
+# Scripts de desarrollo y testing (mantener estructura pero ignorar archivos específicos)
+scripts/*.js
+scripts/*.py
+scripts/*.sql
 
 # Archivos de configuración local
 config/local.js
