@@ -152,3 +152,5 @@ Los PDFs generados mantendrán:
 
 Ver `LabReportExample.js` para un ejemplo completo de uso con datos de muestra.
 
+
+

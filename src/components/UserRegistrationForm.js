@@ -90,12 +90,12 @@ const UserRegistrationForm = ({ onClose, onSuccess }) => {
     }
 
     // Validar teléfono si se proporciona
-    if (formData.phone && !/^\+?[\d\s\-\(\)]+$/.test(formData.phone)) {
+    if (formData.phone && !/^\+?[\d\s\-()]+$/.test(formData.phone)) {
       newErrors.phone = 'El formato del teléfono no es válido';
     }
 
     // Validar teléfono de emergencia si se proporciona
-    if (formData.emergency_phone && !/^\+?[\d\s\-\(\)]+$/.test(formData.emergency_phone)) {
+    if (formData.emergency_phone && !/^\+?[\d\s\-()]+$/.test(formData.emergency_phone)) {
       newErrors.emergency_phone = 'El formato del teléfono de emergencia no es válido';
     }
 

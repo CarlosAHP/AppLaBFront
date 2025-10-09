@@ -123,3 +123,5 @@ const LabReportTemplate = ({
 
 export default LabReportTemplate;
 
+
+

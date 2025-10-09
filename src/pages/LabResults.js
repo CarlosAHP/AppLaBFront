@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { labTestsService } from '../services/labTestsService';
 import { reportService } from '../services/reportService';
+import { frontendHtmlService } from '../services/frontendHtmlService';
 import PatientSearch from '../components/PatientSearch';
 import PatientRegistrationForm from '../components/PatientRegistrationForm';
 import ReportHistory from '../components/ReportHistory';
+import HtmlFileList from '../components/HtmlFileList';
 import { 
   Plus, 
   Search, 
@@ -29,7 +31,9 @@ import {
   Type,
   Trash2,
   Download,
-  History
+  History,
+  Clock,
+  CheckCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import html2canvas from 'html2canvas';
@@ -73,6 +77,12 @@ const LabResults = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Estados para archivos pendientes y completados
+  const [pendingFiles, setPendingFiles] = useState([]);
+  const [completedFiles, setCompletedFiles] = useState([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [editingOriginalFile, setEditingOriginalFile] = useState(null); // Archivo original que se está editando
 
   // Debug: Log cuando cambien los estados
   useEffect(() => {
@@ -86,6 +96,8 @@ const LabResults = () => {
   useEffect(() => {
     loadLabTests();
     loadCategories();
+    loadPendingFiles();
+    loadCompletedFiles();
   }, []);
 
   // Cargar contenido en el editor cuando cambie
@@ -364,8 +376,8 @@ const LabResults = () => {
       
       // Generar datos del paciente (puedes personalizar esto según tus necesidades)
       const patientData = {
-        gender: 'F',
-        orderNumber: '005',
+        gender: selectedPatient?.gender === 'masculino' ? 'M' : 'F',
+        orderNumber: selectedPatient?.patient_code || 'ORD-001',
         patientInitial: selectedPatient ? formatPatientName(selectedPatient).charAt(0) : 'C',
         age: selectedPatient?.age ? `${selectedPatient.age} año(s)` : '43 año(s)',
         doctor: selectedPatient?.doctor || 'MARIA SINAY',
@@ -453,15 +465,15 @@ const LabResults = () => {
     try {
       setSaving(true);
       // Mostrar loading
-      toast.loading('Guardando reporte...', { id: 'save-report' });
+      toast.loading('Guardando resultado...', { id: 'save-report' });
 
       // Generar datos del reporte
       const reportData = {
-        order_number: '005', // Puedes personalizar esto
+        order_number: selectedPatient?.patient_code || 'ORD-001',
         patient_name: selectedPatient ? formatPatientName(selectedPatient) : 'Paciente',
         patient_age: selectedPatient?.age || 43,
-        patient_gender: 'F', // Puedes personalizar esto
-        doctor_name: 'MARIA SINAY', // Puedes personalizar esto
+        patient_gender: selectedPatient?.gender === 'masculino' ? 'M' : 'F',
+        doctor_name: selectedPatient?.doctor || 'MARIA SINAY',
         reception_date: new Date().toISOString().split('T')[0],
         selected_tests: selectedTests.map(test => ({
           name: test.name,
@@ -472,111 +484,190 @@ const LabResults = () => {
       };
 
       try {
-        // Intentar enviar al backend
-        const response = await reportService.createReport(reportData);
+        console.log('🚀 Intentando guardar en servidor...');
+        console.log('📋 Datos a enviar:', {
+          patient_name: reportData.patient_name,
+          order_number: reportData.order_number,
+          doctor_name: reportData.doctor_name,
+          status: 'pending'
+        });
         
-        if (response.success) {
-          toast.success(`Reporte guardado en servidor: ${response.data.file_name}`, { id: 'save-report' });
+        // Verificar conectividad del backend primero
+        console.log('🔍 Verificando conectividad del backend...');
+        try {
+          // Usar un endpoint que sabemos que existe
+          const healthCheck = await fetch('http://localhost:5000/api/frontend-html/system/validate', {
+            method: 'GET',
+            timeout: 5000,
+          });
+          console.log('✅ Backend disponible:', healthCheck.ok);
+        } catch (healthError) {
+          console.warn('⚠️ Backend no disponible:', healthError.message);
+          // No lanzar error aquí, continuar con el intento de guardado
+          console.log('🔄 Continuando con el intento de guardado...');
+        }
+        
+        // Determinar si estamos editando un archivo existente o creando uno nuevo
+        let response;
+        if (editingOriginalFile) {
+          console.log('📝 Actualizando archivo existente:', editingOriginalFile);
           
-          // Guardar en localStorage para historial
-          const reportHistory = JSON.parse(localStorage.getItem('labReports') || '[]');
-          const reportRecord = {
-            id: response.data.id,
-            fileName: response.data.file_name,
-            filePath: response.data.file_path,
-            ...reportData,
-            savedAt: new Date().toISOString(),
-            savedToServer: true
+          // Obtener información del archivo original para calcular edit_count
+          const originalFileInfo = await frontendHtmlService.getFileInfo(editingOriginalFile);
+          const originalMetadata = originalFileInfo.data?.metadata || {};
+          const currentEditCount = originalMetadata.edit_count || 0;
+          const newEditCount = currentEditCount + 1;
+          
+          // Crear entrada de historial de edición
+          const editEntry = {
+            edited_by: user?.username || 'Usuario',
+            edited_at: new Date().toISOString(),
+            edit_number: newEditCount,
+            changes_summary: 'Archivo modificado'
           };
           
-          reportHistory.unshift(reportRecord);
-          // Mantener solo los últimos 50 reportes en localStorage
-          if (reportHistory.length > 50) {
-            reportHistory.splice(50);
-          }
-          localStorage.setItem('labReports', JSON.stringify(reportHistory));
+          // Obtener historial existente o crear uno nuevo
+          const existingHistory = originalMetadata.edit_history || [];
+          const updatedHistory = [...existingHistory, editEntry];
+          
+          // Actualizar archivo existente con seguimiento de ediciones
+          response = await frontendHtmlService.updateHtmlFile(editingOriginalFile, editedHtml, {
+            patient_name: reportData.patient_name,
+            order_number: reportData.order_number,
+            doctor_name: reportData.doctor_name,
+            patient_age: reportData.patient_age,
+            patient_gender: reportData.patient_gender,
+            reception_date: reportData.reception_date,
+            tests: reportData.selected_tests,
+            status: 'pending', // Mantener estado pendiente
+            updated_by: user?.username || 'Usuario',
+            updated_at: new Date().toISOString(),
+            // Campos de seguimiento de ediciones
+            edit_count: newEditCount,
+            is_modified: true,
+            last_edited_by: user?.username || 'Usuario',
+            last_edit_date: new Date().toISOString(),
+            edit_history: updatedHistory,
+            original_created_by: originalMetadata.created_by || originalMetadata.updated_by,
+            modification_timestamp: new Date().toISOString()
+          });
+        } else {
+          console.log('📤 Creando nuevo archivo');
+          // Crear nuevo archivo
+          response = await frontendHtmlService.uploadHtmlFile(editedHtml, {
+            patient_name: reportData.patient_name,
+            order_number: reportData.order_number,
+            doctor_name: reportData.doctor_name,
+            patient_age: reportData.patient_age,
+            patient_gender: reportData.patient_gender,
+            reception_date: reportData.reception_date,
+            tests: reportData.selected_tests,
+            status: 'pending', // Estado pendiente por defecto
+            created_by: user?.username || 'Usuario',
+            created_at: new Date().toISOString(),
+            // Campos iniciales para archivos nuevos
+            edit_count: 0,
+            is_modified: false,
+            original_created_by: user?.username || 'Usuario'
+          });
+        }
+        
+        console.log('📡 Respuesta del servidor:', response);
+        
+        if (response.success) {
+          console.log('✅ Archivo guardado exitosamente en servidor');
+          toast.success(`Resultado guardado exitosamente: ${response.data.filename}`, { id: 'save-report' });
+          
+          // Limpiar el estado de edición
+          setEditingOriginalFile(null);
+          
+          // No guardar en localStorage - solo usar el servidor
 
-          // Volver a la lista
+          // Recargar archivos y volver a la lista
+          await loadPendingFiles();
           handleBackToList();
           return;
+        } else {
+          console.error('❌ Error en la respuesta del servidor:', response.message);
+          throw new Error(response.message || 'Error desconocido del servidor');
         }
       } catch (backendError) {
-        console.warn('Backend not available, saving locally:', backendError.message);
+        console.error('❌ Error al guardar en servidor:', backendError);
+        console.error('📋 Detalles del error:', {
+          message: backendError.message,
+          response: backendError.response?.data,
+          status: backendError.response?.status
+        });
         
-        // Fallback: Guardar solo localmente
-        const fileName = `${reportData.order_number}_${new Date().toISOString().replace(/[:.]/g, '-')}_${reportData.patient_name.replace(/\s+/g, '_')}.html`;
-        
-        // Crear contenido HTML completo
-        const completeHTML = `<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte de Laboratorio - ${reportData.patient_name}</title>
-    <style>
-        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 20px; }
-        .metadata { background: #f5f5f5; padding: 10px; margin-bottom: 20px; border-radius: 5px; }
-        .metadata h3 { margin: 0 0 10px 0; color: #333; }
-        .metadata p { margin: 5px 0; font-size: 12px; color: #666; }
-    </style>
-</head>
-<body>
-    <!-- Metadatos del reporte -->
-    <div class="metadata">
-        <h3>Información del Reporte</h3>
-        <p><strong>Paciente:</strong> ${reportData.patient_name}</p>
-        <p><strong>Número de Orden:</strong> ${reportData.order_number}</p>
-        <p><strong>Doctor:</strong> ${reportData.doctor_name}</p>
-        <p><strong>Edad:</strong> ${reportData.patient_age}</p>
-        <p><strong>Género:</strong> ${reportData.patient_gender}</p>
-        <p><strong>Fecha de Recepción:</strong> ${reportData.reception_date}</p>
-        <p><strong>Pruebas:</strong> ${reportData.selected_tests.map(test => test.name).join(', ')}</p>
-        <p><strong>Generado:</strong> ${new Date().toLocaleString('es-GT')}</p>
-        <p><strong>Estado:</strong> Guardado localmente (servidor no disponible)</p>
-    </div>
-    
-    <!-- Contenido del reporte -->
-    ${editedHtml}
-</body>
-</html>`;
-
-        // Crear blob y descargar
-        const blob = new Blob([completeHTML], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        // Guardar en localStorage
-        const reportHistory = JSON.parse(localStorage.getItem('labReports') || '[]');
-        const reportRecord = {
-          id: Date.now(),
-          fileName: fileName,
-          filePath: 'local',
-          ...reportData,
-          savedAt: new Date().toISOString(),
-          savedToServer: false
-        };
-        
-        reportHistory.unshift(reportRecord);
-        if (reportHistory.length > 50) {
-          reportHistory.splice(50);
-        }
-        localStorage.setItem('labReports', JSON.stringify(reportHistory));
-
-        toast.success(`Reporte guardado localmente: ${fileName}`, { id: 'save-report' });
-        handleBackToList();
+        // Mostrar error y no permitir guardado local
+        toast.error(`Error al guardar en el servidor: ${backendError.message}`, { id: 'save-report' });
+        throw backendError; // Re-lanzar el error para que se maneje en el catch principal
       }
       
     } catch (error) {
       console.error('Error saving report:', error);
-      toast.error(`Error al guardar el reporte: ${error.message}`, { id: 'save-report' });
+      toast.error(`Error al guardar el resultado: ${error.message}`, { id: 'save-report' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Función para manejar la edición de archivos existentes
+  const handleEditFile = async (file) => {
+    try {
+      console.log('📝 Editando archivo:', file.filename);
+      
+      // Cargar el contenido HTML del archivo
+      const response = await frontendHtmlService.getHtmlContent(file.filename);
+      
+      if (response.success) {
+        // El contenido HTML está en response.data.content, no en html_content
+        const htmlContent = response.data.content || response.data.html_content;
+        
+        // Establecer el contenido HTML en el editor
+        setHtmlContent(htmlContent);
+        setEditedHtml(htmlContent);
+        
+        // Establecer los datos del paciente desde los metadatos
+        const metadata = file.metadata || {};
+        const patientData = {
+          patient_code: metadata.order_number,
+          full_name: metadata.patient_name,
+          age: metadata.patient_age,
+          gender: metadata.patient_gender === 'M' ? 'masculino' : 'femenino',
+          doctor: metadata.doctor_name
+        };
+        
+        setSelectedPatient(patientData);
+        
+        // Establecer las pruebas desde los metadatos
+        const tests = metadata.tests || [];
+        setSelectedTests(tests);
+        
+        // Guardar el nombre del archivo original que estamos editando
+        setEditingOriginalFile(file.filename);
+        
+        // Cambiar a la vista del editor
+        setCurrentView('html-editor');
+        
+        // Cerrar el historial si está abierto
+        setShowHistory(false);
+        
+        // Actualizar el contenido del editor después de un pequeño delay
+        setTimeout(() => {
+          if (editorRef.current) {
+            editorRef.current.innerHTML = htmlContent;
+            console.log('📝 Contenido HTML cargado en el editor:', htmlContent);
+          }
+        }, 100);
+        
+        toast.success('Archivo cargado para edición');
+      } else {
+        throw new Error(response.message || 'Error al cargar el archivo');
+      }
+    } catch (error) {
+      console.error('Error cargando archivo para edición:', error);
+      toast.error(`Error al cargar archivo: ${error.message}`);
     }
   };
 
@@ -674,6 +765,71 @@ const LabResults = () => {
     setSelectedTests([]);
     setHtmlContent('');
     setEditedHtml('');
+    setEditingOriginalFile(null); // Limpiar el estado de edición
+  };
+
+  // Cargar archivos pendientes
+  const loadPendingFiles = async () => {
+    try {
+      setLoadingFiles(true);
+      const response = await frontendHtmlService.getPendingFiles();
+      if (response.success) {
+        setPendingFiles(response.data.files || []);
+      }
+    } catch (error) {
+      console.error('Error loading pending files:', error);
+      toast.error('Error al cargar archivos pendientes');
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  // Cargar archivos completados
+  const loadCompletedFiles = async () => {
+    try {
+      setLoadingFiles(true);
+      const response = await frontendHtmlService.getCompletedFiles();
+      if (response.success) {
+        setCompletedFiles(response.data.files || []);
+      }
+    } catch (error) {
+      console.error('Error loading completed files:', error);
+      toast.error('Error al cargar archivos completados');
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  // Marcar archivo como completado
+  const handleMarkAsCompleted = async (filename) => {
+    try {
+      const response = await frontendHtmlService.markAsCompleted(filename);
+      if (response.success) {
+        toast.success('Archivo marcado como completado');
+        // Recargar archivos
+        await loadPendingFiles();
+        await loadCompletedFiles();
+      }
+    } catch (error) {
+      console.error('Error marking as completed:', error);
+      toast.error('Error al marcar como completado');
+    }
+  };
+
+  // Marcar archivo como pendiente
+  const handleMarkAsPending = async (filename) => {
+    try {
+      const response = await frontendHtmlService.markAsPending(filename);
+      if (response.success) {
+        toast.success('Archivo marcado como pendiente');
+        // Recargar archivos
+        await loadPendingFiles();
+        await loadCompletedFiles();
+      }
+    } catch (error) {
+      console.error('Error marking as pending:', error);
+      toast.error('Error al marcar como pendiente');
+    }
   };
 
   // Funciones para el editor de texto
@@ -1556,29 +1712,66 @@ const LabResults = () => {
 
       {/* Main List View - Mostrar cuando no hay vista específica activa */}
       {currentView === 'list' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="text-center py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Sistema de Generación de Resultados</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Selecciona "Nuevo Resultado" para comenzar a generar un resultado de laboratorio.
-            </p>
-            <div className="mt-6">
-              <button
-                onClick={handleNewResult}
-                className="btn-primary"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Nuevo Resultado
-              </button>
+        <div className="space-y-6">
+          {/* Sección de Archivos Pendientes */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Clock className="h-5 w-5 text-orange-500 mr-2" />
+                  <h3 className="text-lg font-medium text-gray-900">Resultados Pendientes</h3>
+                </div>
+              </div>
             </div>
+            
+            <div className="p-6">
+              <HtmlFileList 
+                status="pending" 
+                title="Archivos Pendientes de Revisión"
+                onEditFile={handleEditFile}
+              />
+            </div>
+          </div>
+
+          {/* Sección de Archivos Completados */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                  <h3 className="text-lg font-medium text-gray-900">Resultados Completados</h3>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <HtmlFileList 
+                status="completed" 
+                title="Archivos Completados"
+                onEditFile={handleEditFile}
+              />
+            </div>
+          </div>
+
+          {/* Botón para Nuevo Resultado */}
+          <div className="text-center">
+            <button
+              onClick={handleNewResult}
+              className="btn-primary"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Nuevo Resultado
+            </button>
           </div>
         </div>
       )}
 
       {/* Report History Modal */}
       {showHistory && (
-        <ReportHistory onClose={() => setShowHistory(false)} />
+        <ReportHistory 
+          onClose={() => setShowHistory(false)} 
+          onEditFile={handleEditFile}
+        />
       )}
     </div>
   );
