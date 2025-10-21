@@ -41,6 +41,15 @@ const PatientSearch = ({ onPatientSelect, onNewPatient }) => {
     } catch (error) {
       if (error.message.includes('No se encontró')) {
         setSearchResults([]);
+      } else if (error.message.includes('Sin conexión a la API')) {
+        // No mostrar error para conexión, solo lista vacía
+        console.log('⚠️ Sin conexión a la API - Búsqueda no disponible');
+        setSearchResults([]);
+        setSearchInfo({
+          search_term: searchTerm,
+          search_words: [],
+          total: 0
+        });
       } else {
         toast.error('Error al buscar pacientes');
         console.error('Search error:', error);
@@ -288,6 +297,9 @@ const PatientSearch = ({ onPatientSelect, onNewPatient }) => {
             <p>• Palabras parciales: "María" encuentra "María Elena"</p>
             <p>• Código de paciente: "P2025"</p>
             <p>• DPI: "1234567"</p>
+          </div>
+          <div className="mt-4 text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-md">
+            ⚠️ Sin conexión a la API - La búsqueda no está disponible
           </div>
         </div>
       )}

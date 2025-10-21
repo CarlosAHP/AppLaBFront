@@ -10,9 +10,49 @@ const isBackendAvailable = async () => {
       method: 'GET',
       timeout: 3000
     });
+    
     // Si devuelve 401 (token requerido), significa que el endpoint existe
-    return response.status === 401 || response.ok;
+    // Si devuelve 200, también está disponible
+    // Si devuelve 500, el servidor está funcionando pero hay error interno
+    const isAvailable = response.status === 401 || response.status === 200 || response.status === 500;
+    
+    console.log(`Backend availability check: ${response.status} - ${isAvailable ? 'Available' : 'Not available'}`);
+    return isAvailable;
   } catch (error) {
+    console.log('Backend availability check failed:', error.message);
+    return false;
+  }
+};
+
+// Función para verificar autenticación antes de hacer peticiones
+const ensureAuthentication = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log('⚠️ No token found, authentication required');
+    return false;
+  }
+  
+  try {
+    // Verificar que el token sea válido
+    const response = await fetch(`${PATIENT_CONFIG.API_URL}/auth/verify`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      console.log('✅ Token is valid');
+      return true;
+    } else {
+      console.log('❌ Token is invalid, clearing auth data');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return false;
+    }
+  } catch (error) {
+    console.log('❌ Token verification failed:', error.message);
     return false;
   }
 };
@@ -27,9 +67,17 @@ const getPatientService = async () => {
   
   const backendAvailable = await isBackendAvailable();
   if (!backendAvailable) {
-    console.log('⚠️ [PATIENT SERVICE] Backend no disponible, usando servicio MOCK');
-    console.log('   ⚠️ Los cambios NO se guardan en la base de datos');
-    return patientServiceMock;
+    console.log('⚠️ [PATIENT SERVICE] Backend no disponible - NO se mostrarán pacientes');
+    console.log('   ❌ Sin conexión a la API - Lista de pacientes vacía');
+    return null; // No usar mock, devolver null para indicar sin conexión
+  }
+  
+  // Verificar autenticación antes de usar el servicio real
+  const isAuthenticated = await ensureAuthentication();
+  if (!isAuthenticated) {
+    console.log('⚠️ [PATIENT SERVICE] No autenticado - NO se mostrarán pacientes');
+    console.log('   ❌ Token inválido o expirado - Lista de pacientes vacía');
+    return null;
   }
   
   console.log('🌐 [PATIENT SERVICE] Usando servicio REAL de pacientes');
@@ -124,6 +172,24 @@ export const patientServiceReal = {
         throw new Error(response.data.message || 'Error al buscar pacientes');
       }
     } catch (error) {
+      // Si es error 401, intentar una vez más después de un breve delay
+      if (error.response?.status === 401) {
+        console.log('401 error on searchPatients, retrying once...');
+        try {
+          // Esperar un poco y reintentar
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const retryResponse = await api.get('/patients/search', {
+            params: searchParams
+          });
+          
+          if (retryResponse.data.success) {
+            return retryResponse.data;
+          }
+        } catch (retryError) {
+          console.log('Retry failed:', retryError.message);
+        }
+      }
+      
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);
       }
@@ -148,6 +214,28 @@ export const patientServiceReal = {
         throw new Error(response.data.message || 'Error al obtener pacientes');
       }
     } catch (error) {
+      // Si es error 401, intentar una vez más después de un breve delay
+      if (error.response?.status === 401) {
+        console.log('401 error on getPatients, retrying once...');
+        try {
+          // Esperar un poco y reintentar
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const retryResponse = await api.get('/patients', {
+            params: { 
+              page, 
+              per_page: perPage,
+              ...filters
+            }
+          });
+          
+          if (retryResponse.data.success) {
+            return retryResponse.data;
+          }
+        } catch (retryError) {
+          console.log('Retry failed:', retryError.message);
+        }
+      }
+      
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);
       }
@@ -250,56 +338,105 @@ export const patientServiceReal = {
 export const patientService = {
   async createPatient(patientData) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden crear pacientes.');
+    }
     return service.createPatient(patientData);
   },
 
   async getPatientById(id) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden obtener pacientes.');
+    }
     return service.getPatientById(id);
   },
 
   async getPatientByCode(code) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden obtener pacientes.');
+    }
     return service.getPatientByCode(code);
   },
 
   async getPatientByDpi(dpi) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden obtener pacientes.');
+    }
     return service.getPatientByDpi(dpi);
   },
 
   async searchPatients(searchParams) {
     const service = await getPatientService();
+    if (!service) {
+      // Devolver lista vacía en lugar de error para búsquedas
+      return {
+        success: true,
+        data: [],
+        search_term: searchParams.query || searchParams.q || '',
+        total: 0
+      };
+    }
     return service.searchPatients(searchParams);
   },
 
   async getPatients(page = 1, perPage = 10, filters = {}) {
     const service = await getPatientService();
+    if (!service) {
+      // Devolver lista vacía en lugar de error para listados
+      return {
+        success: true,
+        data: [],
+        pagination: {
+          page: page,
+          per_page: perPage,
+          total: 0,
+          pages: 0
+        }
+      };
+    }
     return service.getPatients(page, perPage, filters);
   },
 
   async updatePatient(id, patientData) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden actualizar pacientes.');
+    }
     return service.updatePatient(id, patientData);
   },
 
   async deactivatePatient(id) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden desactivar pacientes.');
+    }
     return service.deactivatePatient(id);
   },
 
   async deletePatient(id) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden eliminar pacientes.');
+    }
     return service.deletePatient(id);
   },
 
   async activatePatient(id) {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden reactivar pacientes.');
+    }
     return service.activatePatient(id);
   },
 
   async getPatientStatistics() {
     const service = await getPatientService();
+    if (!service) {
+      throw new Error('Sin conexión a la API. No se pueden obtener estadísticas.');
+    }
     return service.getPatientStatistics();
   }
 };

@@ -58,8 +58,20 @@ const PatientManagement = () => {
         ...response.pagination
       }));
     } catch (error) {
-      toast.error('Error al cargar pacientes');
-      console.error('Error loading patients:', error);
+      // Si es error de conexión, mostrar lista vacía sin error
+      if (error.message.includes('Sin conexión a la API')) {
+        console.log('⚠️ Sin conexión a la API - Mostrando lista vacía');
+        setPatients([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0,
+          pages: 0
+        }));
+        // No mostrar toast de error para conexión
+      } else {
+        toast.error('Error al cargar pacientes');
+        console.error('Error loading patients:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -627,17 +639,22 @@ const PatientManagement = () => {
                 <p className="mt-1 text-sm text-gray-500">
                   {searchTerm || statusFilter !== 'all' 
                     ? 'No se encontraron pacientes con los filtros aplicados.'
-                    : 'Comienza agregando un nuevo paciente.'
+                    : 'Sin conexión a la API. Los pacientes no se pueden cargar.'
                   }
                 </p>
                 {!searchTerm && statusFilter === 'all' && (
-                  <button
-                    onClick={handleNewPatient}
-                    className="mt-4 btn-primary"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Paciente
-                  </button>
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded-md">
+                      ⚠️ Verifica la conexión a la API para acceder a los pacientes
+                    </div>
+                    <button
+                      onClick={handleNewPatient}
+                      className="btn-primary"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Nuevo Paciente
+                    </button>
+                  </div>
                 )}
               </div>
             )}

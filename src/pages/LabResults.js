@@ -7,6 +7,8 @@ import PatientSearch from '../components/PatientSearch';
 import PatientRegistrationForm from '../components/PatientRegistrationForm';
 import ReportHistory from '../components/ReportHistory';
 import HtmlFileList from '../components/HtmlFileList';
+import OCRScanner from '../components/OCRScanner';
+import MedicalInterpreter from '../components/MedicalInterpreter';
 import { 
   Plus, 
   Search, 
@@ -33,7 +35,9 @@ import {
   Download,
   History,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Camera,
+  Brain
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import html2canvas from 'html2canvas';
@@ -83,6 +87,12 @@ const LabResults = () => {
   const [completedFiles, setCompletedFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [editingOriginalFile, setEditingOriginalFile] = useState(null); // Archivo original que se está editando
+  
+  // Estados para OCR
+  const [showOCR, setShowOCR] = useState(false);
+  
+  // Estados para Interpretador Médico
+  const [showMedicalInterpreter, setShowMedicalInterpreter] = useState(false);
 
   // Debug: Log cuando cambien los estados
   useEffect(() => {
@@ -846,6 +856,31 @@ const LabResults = () => {
     }
   };
 
+  // Función para insertar texto del OCR en el editor
+  const handleInsertOCRText = (text) => {
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(document.createTextNode(text));
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        // Si no hay selección, insertar al final
+        editorRef.current.innerHTML += `<br>${text}`;
+      }
+      handleEditorChange();
+    }
+  };
+
+  // Función para manejar la interpretación médica
+  const handleMedicalInterpretation = (interpretationData) => {
+    console.log('Interpretación médica completada:', interpretationData);
+    toast.success('Interpretación médica completada');
+  };
+
   const handleEditorClick = (e) => {
     // Permitir el comportamiento normal del clic
     // Solo intervenir si hay problemas de posicionamiento
@@ -1513,38 +1548,61 @@ const LabResults = () => {
 
       {/* HTML Editor View */}
       {currentView === 'html-editor' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Editor de Resultado</h2>
-              <div className="mt-2 flex items-center text-sm text-gray-600">
-                <FileText className="h-4 w-4 mr-2" />
-                {selectedTests.length === 1 
-                  ? selectedTests[0]?.name 
-                  : `${selectedTests.length} pruebas seleccionadas`
-                }
-                {selectedPatient && (
-                  <>
-                    <span className="mx-2">•</span>
-                    <UserCheck className="h-4 w-4 mr-2" />
-                    {formatPatientName(selectedPatient)}
-                  </>
+        <div className="space-y-6">
+          <div className="flex gap-6">
+            {/* Editor principal */}
+            <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Editor de Resultado</h2>
+                <div className="mt-2 flex items-center text-sm text-gray-600">
+                  <FileText className="h-4 w-4 mr-2" />
+                  {selectedTests.length === 1 
+                    ? selectedTests[0]?.name 
+                    : `${selectedTests.length} pruebas seleccionadas`
+                  }
+                  {selectedPatient && (
+                    <>
+                      <span className="mx-2">•</span>
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      {formatPatientName(selectedPatient)}
+                    </>
+                  )}
+                </div>
+                {selectedTests.length > 1 && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    {selectedTests.map(test => test.name).join(', ')}
+                  </div>
                 )}
               </div>
-              {selectedTests.length > 1 && (
-                <div className="mt-1 text-xs text-gray-500">
-                  {selectedTests.map(test => test.name).join(', ')}
-                </div>
-              )}
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setShowMedicalInterpreter(!showMedicalInterpreter)}
+                  className={`btn-secondary text-sm ${
+                    showMedicalInterpreter ? 'bg-blue-100 text-blue-700 border-blue-300' : ''
+                  }`}
+                >
+                  <Brain className="h-4 w-4 mr-1" />
+                  {showMedicalInterpreter ? 'Ocultar IA' : 'Mostrar IA'}
+                </button>
+                <button
+                  onClick={() => setShowOCR(!showOCR)}
+                  className={`btn-secondary text-sm ${
+                    showOCR ? 'bg-green-100 text-green-700 border-green-300' : ''
+                  }`}
+                >
+                  <Camera className="h-4 w-4 mr-1" />
+                  {showOCR ? 'Ocultar OCR' : 'Mostrar OCR'}
+                </button>
+                <button
+                  onClick={handleBackToTestSelection}
+                  className="btn-secondary"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Volver
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleBackToTestSelection}
-              className="btn-secondary"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
-            </button>
-          </div>
 
           {/* Custom WYSIWYG Editor */}
           <div className="space-y-4">
@@ -1707,6 +1765,29 @@ const LabResults = () => {
               />
             </div>
           </div>
+          </div>
+
+          {/* Panel OCR */}
+          {showOCR && (
+            <div className="w-80">
+              <OCRScanner 
+                onTextExtracted={(text) => console.log('Text extracted:', text)}
+                onInsertText={handleInsertOCRText}
+                editorContent={editedHtml}
+              />
+            </div>
+          )}
+          </div>
+
+          {/* Interpretador Médico - Sección completa debajo */}
+          {showMedicalInterpreter && (
+            <div className="mt-6">
+              <MedicalInterpreter 
+                htmlContent={editedHtml}
+                onInterpretationComplete={handleMedicalInterpretation}
+              />
+            </div>
+          )}
         </div>
       )}
 
