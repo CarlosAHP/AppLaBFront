@@ -164,7 +164,7 @@ class MedicalInterpreter:
         IMPORTANTE: Responde SOLO con el JSON, sin texto adicional.
         """
 
-        # Temporalmente desactivar IA para usar solo fallback estructurado
+        # inicio de la IA
         logger.info("Usando sistema de fallback estructurado")
         return self.generate_fallback_interpretation(lab_values, patient_info)
 

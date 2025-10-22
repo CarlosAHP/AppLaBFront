@@ -11,6 +11,11 @@ import re
 from datetime import datetime
 import logging
 
+from transformers import AutoModel, AutoTokenizer
+model_name = "Drbellamy/labrador"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModel.from_pretrained(model_name)
+
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
