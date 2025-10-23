@@ -77,10 +77,12 @@ export const extractDateFromOrderNumber = (orderNumber) => {
   return null;
 };
 
-export default {
+const orderNumberUtils = {
   generateOrderNumber,
   generateOrderNumberWithRandom,
   generateSequentialOrderNumber,
   isValidOrderNumber,
   extractDateFromOrderNumber
 };
+
+export default orderNumberUtils;

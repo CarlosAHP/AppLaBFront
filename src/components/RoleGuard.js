@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { AlertCircle, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 const RoleGuard = ({ 
   children, 
@@ -8,7 +8,7 @@ const RoleGuard = ({
   fallback = null,
   showError = true 
 }) => {
-  const { hasRole, hasAnyRole, user } = useAuth();
+  const { hasAnyRole, user } = useAuth();
 
   // Si no hay roles especificados, permitir acceso
   if (allowedRoles.length === 0) {

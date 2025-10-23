@@ -8,7 +8,7 @@ export const PATIENT_CONFIG = {
   USE_MOCK: process.env.REACT_APP_USE_PATIENT_MOCK === 'true',
   
   // URL del backend
-  API_URL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  API_URL: 'http://localhost:5002/api',
   
   // Configuración de búsqueda
   SEARCH: {

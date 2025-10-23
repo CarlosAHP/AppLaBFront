@@ -63,16 +63,25 @@ const PatientRegistrationForm = ({ onPatientCreated, onBack, patient = null, isE
     try {
       setIsSubmitting(true);
       
+      // Debug logs
+      console.log('🔍 [PATIENT EDIT DEBUG]', {
+        isEditing,
+        patient: patient ? { id: patient.id, name: patient.first_name } : null,
+        hasPatientId: !!patient?.id
+      });
+      
       // Limpiar campos vacíos
       const cleanData = Object.fromEntries(
         Object.entries(data).filter(([_, value]) => value !== '')
       );
 
       let response;
-      if (isEditing && patient) {
+      if (isEditing && patient && patient.id) {
+        console.log('📝 [PATIENT EDIT] Updating patient with ID:', patient.id);
         response = await patientService.updatePatient(patient.id, cleanData);
         toast.success('Paciente actualizado exitosamente');
       } else {
+        console.log('➕ [PATIENT EDIT] Creating new patient');
         response = await patientService.createPatient(cleanData);
         toast.success('Paciente registrado exitosamente');
       }

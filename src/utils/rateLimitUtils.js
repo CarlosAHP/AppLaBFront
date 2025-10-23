@@ -96,7 +96,7 @@ export const formatTimeRemaining = (timestamp) => {
   return `${seconds}s`;
 };
 
-export default {
+const rateLimitUtils = {
   clearRateLimitState,
   recordLoginAttempt,
   getLoginAttempts,
@@ -104,3 +104,5 @@ export default {
   getRateLimitInfo,
   formatTimeRemaining
 };
+
+export default rateLimitUtils;

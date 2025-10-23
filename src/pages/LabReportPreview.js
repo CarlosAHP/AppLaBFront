@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import LabReportTemplate from '../components/LabReportTemplate';
 import usePDFGenerator from '../hooks/usePDFGenerator';
-import { Download, Eye, Edit3 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const LabReportPreview = () => {

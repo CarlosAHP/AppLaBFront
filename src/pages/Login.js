@@ -128,7 +128,7 @@ const Login = () => {
       }
       
       if (error.message.includes('CORS') || error.message.includes('ERR_NETWORK')) {
-        toast.error('Error de conexión. Verifica que el servidor esté ejecutándose en http://localhost:5000');
+        toast.error('Error de conexión. Verifica que el servidor esté ejecutándose en http://localhost:5002');
       } else {
         const formattedError = formatAuthError(error);
         toast.error(formattedError);

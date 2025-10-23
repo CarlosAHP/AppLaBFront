@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, Stethoscope, AlertTriangle, CheckCircle, Loader, Download, Copy, RefreshCw } from 'lucide-react';
+import { Brain, Stethoscope, AlertTriangle, CheckCircle, Loader, Download, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_URLS } from '../config/apiEndpoints';
 

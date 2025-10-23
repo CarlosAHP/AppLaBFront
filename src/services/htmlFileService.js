@@ -223,4 +223,5 @@ class HtmlFileService {
   }
 }
 
-export default new HtmlFileService();
+const htmlFileService = new HtmlFileService();
+export default htmlFileService;

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { labTestsService } from '../services/labTestsService';
-import { reportService } from '../services/reportService';
 import { frontendHtmlService } from '../services/frontendHtmlService';
 import PatientSearch from '../components/PatientSearch';
 import PatientRegistrationForm from '../components/PatientRegistrationForm';
@@ -13,14 +12,11 @@ import {
   Plus, 
   Search, 
   FileText, 
-  Calendar,
-  User,
   ArrowLeft,
   UserCheck,
   Edit3,
   Save,
   X,
-  Filter,
   Grid,
   List,
   Bold,
@@ -83,9 +79,6 @@ const LabResults = () => {
   const [showHistory, setShowHistory] = useState(false);
   
   // Estados para archivos pendientes y completados
-  const [pendingFiles, setPendingFiles] = useState([]);
-  const [completedFiles, setCompletedFiles] = useState([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
   const [editingOriginalFile, setEditingOriginalFile] = useState(null); // Archivo original que se está editando
   
   // Estados para OCR
@@ -106,8 +99,6 @@ const LabResults = () => {
   useEffect(() => {
     loadLabTests();
     loadCategories();
-    loadPendingFiles();
-    loadCompletedFiles();
   }, []);
 
   // Cargar contenido en el editor cuando cambie
@@ -365,7 +356,7 @@ const LabResults = () => {
         <!-- Sección de firma responsable -->
         <div style="display: flex; justify-content: flex-end; align-items: flex-end;">
           <div style="display: flex; flex-direction: column; align-items: center; min-width: 200px;">
-            <img src="/recursos/firmas/firma licda xomara lopez.png" alt="Firma Licda. Xomara López" style="width: 150px; height: 60px; object-fit: contain; margin-bottom: 10px;" />
+            <img src="/recursos/firmas/firma_responsable.png" alt="Firma Licda. Xomara López" style="width: 150px; height: 60px; object-fit: contain; margin-bottom: 10px;" />
             <div style="font-size: 11px; color: #000; text-align: center; font-weight: bold; margin-top: 5px;">Licda. Xomara López</div>
             <div style="font-size: 10px; color: #000; text-align: center; font-weight: normal;">Química Bióloga</div>
             <div style="font-size: 10px; color: #000; text-align: center; font-weight: normal;">Col. 4118</div>
@@ -506,7 +497,7 @@ const LabResults = () => {
         console.log('🔍 Verificando conectividad del backend...');
         try {
           // Usar un endpoint que sabemos que existe
-          const healthCheck = await fetch('http://localhost:5000/api/frontend-html/system/validate', {
+          const healthCheck = await fetch('http://localhost:5002/api/frontend-html/system/validate', {
             method: 'GET',
             timeout: 5000,
           });
@@ -594,7 +585,6 @@ const LabResults = () => {
           // No guardar en localStorage - solo usar el servidor
 
           // Recargar archivos y volver a la lista
-          await loadPendingFiles();
           handleBackToList();
           return;
         } else {
@@ -778,69 +768,7 @@ const LabResults = () => {
     setEditingOriginalFile(null); // Limpiar el estado de edición
   };
 
-  // Cargar archivos pendientes
-  const loadPendingFiles = async () => {
-    try {
-      setLoadingFiles(true);
-      const response = await frontendHtmlService.getPendingFiles();
-      if (response.success) {
-        setPendingFiles(response.data.files || []);
-      }
-    } catch (error) {
-      console.error('Error loading pending files:', error);
-      toast.error('Error al cargar archivos pendientes');
-    } finally {
-      setLoadingFiles(false);
-    }
-  };
 
-  // Cargar archivos completados
-  const loadCompletedFiles = async () => {
-    try {
-      setLoadingFiles(true);
-      const response = await frontendHtmlService.getCompletedFiles();
-      if (response.success) {
-        setCompletedFiles(response.data.files || []);
-      }
-    } catch (error) {
-      console.error('Error loading completed files:', error);
-      toast.error('Error al cargar archivos completados');
-    } finally {
-      setLoadingFiles(false);
-    }
-  };
-
-  // Marcar archivo como completado
-  const handleMarkAsCompleted = async (filename) => {
-    try {
-      const response = await frontendHtmlService.markAsCompleted(filename);
-      if (response.success) {
-        toast.success('Archivo marcado como completado');
-        // Recargar archivos
-        await loadPendingFiles();
-        await loadCompletedFiles();
-      }
-    } catch (error) {
-      console.error('Error marking as completed:', error);
-      toast.error('Error al marcar como completado');
-    }
-  };
-
-  // Marcar archivo como pendiente
-  const handleMarkAsPending = async (filename) => {
-    try {
-      const response = await frontendHtmlService.markAsPending(filename);
-      if (response.success) {
-        toast.success('Archivo marcado como pendiente');
-        // Recargar archivos
-        await loadPendingFiles();
-        await loadCompletedFiles();
-      }
-    } catch (error) {
-      console.error('Error marking as pending:', error);
-      toast.error('Error al marcar como pendiente');
-    }
-  };
 
   // Funciones para el editor de texto
   const execCommand = (command, value = null) => {

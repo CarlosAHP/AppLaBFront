@@ -12,7 +12,8 @@ import {
   Settings,
   FlaskConical,
   Users,
-  UserCheck
+  UserCheck,
+  FileUp
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -36,6 +37,7 @@ const Layout = ({ children }) => {
     { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'secretary', 'doctor', 'technician', 'user'] },
     { name: 'Resultados', href: '/lab-results', icon: FileText, roles: ['admin', 'secretary', 'doctor', 'technician', 'user'] },
     { name: 'Gestión de Pacientes', href: '/patients', icon: UserCheck, roles: ['admin', 'secretary', 'doctor'] },
+    { name: 'Convertidor Word', href: '/word-converter', icon: FileUp, roles: ['admin', 'secretary', 'doctor'] },
     { name: 'Pagos', href: '/payments', icon: CreditCard, roles: ['admin', 'secretary', 'doctor', 'user'] },
     { name: 'Sincronización', href: '/sync', icon: Sync, roles: ['admin'] },
     { name: 'Gestión de Usuarios', href: '/user-management', icon: Users, roles: ['admin'] },

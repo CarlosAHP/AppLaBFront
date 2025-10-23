@@ -1,5 +1,4 @@
 import api from './api';
-import { generateOrderNumber } from '../utils/orderNumberGenerator';
 
 export const frontendHtmlService = {
   // Subir archivo HTML desde el frontend

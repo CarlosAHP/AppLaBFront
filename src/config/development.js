@@ -21,9 +21,9 @@ export const DEV_CONFIG = {
   
   // URLs de desarrollo
   DEVELOPMENT_URLS: {
-    BACKEND: 'http://localhost:5000',
+    BACKEND: 'http://localhost:5002',
     FRONTEND: 'http://localhost:3000',
-    API_BASE: 'http://localhost:5000/api'
+    API_BASE: 'http://localhost:5002/api'
   }
 };
 

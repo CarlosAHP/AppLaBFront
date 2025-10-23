@@ -108,7 +108,15 @@ export const patientServiceReal = {
   // Obtener paciente por ID
   async getPatientById(id) {
     try {
+      console.log('🔍 [PATIENT SERVICE] getPatientById llamado con ID:', id);
       const response = await api.get(`/patients/${id}`);
+      
+      console.log('📋 [PATIENT SERVICE] Respuesta del backend:', {
+        success: response.data.success,
+        hasData: !!response.data.data,
+        dataId: response.data.data?.id,
+        dataName: response.data.data?.first_name
+      });
       
       if (response.data.success) {
         return response.data;
@@ -116,6 +124,7 @@ export const patientServiceReal = {
         throw new Error(response.data.message || 'Error al obtener paciente');
       }
     } catch (error) {
+      console.error('❌ [PATIENT SERVICE] Error en getPatientById:', error.message);
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);
       }

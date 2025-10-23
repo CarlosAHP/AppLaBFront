@@ -21,7 +21,6 @@ import { API_URLS } from '../config/apiEndpoints';
 const StructuredMedicalInterpreter = ({ htmlContent, onInterpretationComplete }) => {
   const [isInterpreting, setIsInterpreting] = useState(false);
   const [interpretationData, setInterpretationData] = useState(null);
-  const [patientInfo, setPatientInfo] = useState({});
 
   // Función para interpretar resultados médicos
   const interpretResults = async () => {
@@ -53,7 +52,6 @@ const StructuredMedicalInterpreter = ({ htmlContent, onInterpretationComplete })
       
       if (data.success && data.data) {
         setInterpretationData(data.data);
-        setPatientInfo(data.patient_info || {});
         
         // Notificar al componente padre
         if (onInterpretationComplete) {

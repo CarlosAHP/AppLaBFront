@@ -1,13 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { Camera, X, Download, Copy, Check, Upload, Clipboard, Lightbulb, Target, HelpCircle } from 'lucide-react';
+import { Camera, X, Copy, Check, Upload, Clipboard, Lightbulb, Target, HelpCircle } from 'lucide-react';
 import { createWorker } from 'tesseract.js';
 import toast from 'react-hot-toast';
 import OCRStats from './OCRStats';
 
 const OCRScanner = ({ onTextExtracted, onInsertText, editorContent = '' }) => {
-  const [isScanning, setIsScanning] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
-  const [extractedText, setExtractedText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedResults, setExtractedResults] = useState([]);
   const [showCamera, setShowCamera] = useState(false);
@@ -72,7 +70,6 @@ const OCRScanner = ({ onTextExtracted, onInsertText, editorContent = '' }) => {
       const worker = await createWorker('spa'); // Español
       const { data: { text } } = await worker.recognize(capturedImage);
       
-      setExtractedText(text);
       
       // Procesar texto y extraer resultados estructurados
       const results = processExtractedText(text);
@@ -300,7 +297,6 @@ const OCRScanner = ({ onTextExtracted, onInsertText, editorContent = '' }) => {
   // Función para limpiar todo
   const clearAll = () => {
     setCapturedImage(null);
-    setExtractedText('');
     setExtractedResults([]);
     setShowCamera(false);
   };

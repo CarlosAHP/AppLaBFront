@@ -15,6 +15,7 @@ import Payments from './pages/Payments';
 import Sync from './pages/Sync';
 import Profile from './pages/Profile';
 import UserManagement from './pages/UserManagement';
+import WordToHtmlConverter from './components/WordToHtmlConverter';
 
 function App() {
   return (
@@ -79,6 +80,14 @@ function App() {
               <ProtectedRoute requiredRoles={['admin', 'secretary', 'doctor']}>
                 <Layout>
                   <PatientManagement />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/word-converter" element={
+              <ProtectedRoute requiredRoles={['admin', 'secretary', 'doctor']}>
+                <Layout>
+                  <WordToHtmlConverter />
                 </Layout>
               </ProtectedRoute>
             } />

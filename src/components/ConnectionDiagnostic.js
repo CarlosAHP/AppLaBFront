@@ -210,7 +210,7 @@ const ConnectionDiagnostic = ({ onClose }) => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <h3 className="font-medium text-blue-900 mb-2">Soluciones comunes:</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Verifica que el backend esté ejecutándose en el puerto 5000</li>
+              <li>• Verifica que el backend esté ejecutándose en el puerto 5002</li>
               <li>• Asegúrate de que CORS esté configurado en el backend</li>
               <li>• Revisa la consola del navegador para más detalles</li>
               <li>• Intenta reiniciar tanto el frontend como el backend</li>

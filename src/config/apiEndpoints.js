@@ -1,7 +1,7 @@
 // Configuración de endpoints de API
 const API_CONFIG = {
   // Backend Flask para interpretación médica
-  MEDICAL_API_BASE_URL: 'http://localhost:5000',
+  MEDICAL_API_BASE_URL: 'http://localhost:5002',
   
   // Endpoints específicos
   MEDICAL_INTERPRET: '/api/medical-interpret',

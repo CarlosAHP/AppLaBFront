@@ -109,8 +109,20 @@ const PatientManagement = () => {
 
   const handleEditPatient = async (patient) => {
     try {
+      console.log('🔍 [PATIENT MANAGEMENT] Starting edit for patient:', {
+        id: patient.id,
+        name: patient.first_name,
+        hasId: !!patient.id
+      });
+      
       // Cargar los datos completos del paciente
       const response = await patientService.getPatientById(patient.id);
+      console.log('📋 [PATIENT MANAGEMENT] Loaded patient data:', {
+        id: response.data.id,
+        name: response.data.first_name,
+        hasId: !!response.data.id
+      });
+      
       setSelectedPatient(response.data);
       setCurrentView('registration');
     } catch (error) {
@@ -239,6 +251,11 @@ const PatientManagement = () => {
       {/* Patient Registration View */}
       {currentView === 'registration' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {console.log('🎯 [PATIENT MANAGEMENT] Rendering PatientRegistrationForm with:', {
+            selectedPatient: selectedPatient ? { id: selectedPatient.id, name: selectedPatient.first_name } : null,
+            isEditing: !!selectedPatient,
+            hasPatientId: !!selectedPatient?.id
+          })}
           <PatientRegistrationForm
             onPatientCreated={handlePatientCreated}
             onBack={handleBackToList}
